@@ -6,7 +6,7 @@ import jpype
 import jpype.imports
 
 import numpy as np
-from typing import List
+from typing import Dict, List
 
 def _get_jvm_path():
     """Find libjvm, preferring JAVA_HOME if set over jpype's PATH-based detection."""
@@ -46,10 +46,12 @@ class PyTAG():
     This class expects to have a single python agents
     Note that the java jar package is expected to be in the jars folder of the same directory as this file.
     """
-    def __init__(self, agent_ids: List[str], game_id: str="Diamant", seed: int=0, obs_type:str="vector"):
+    def __init__(self, agent_ids: List[str], game_id: str="Diamant", seed: int=0, obs_type:str="vector",
+                 game_params: Dict[str, int]=None):
         self.agent_ids = agent_ids
         self.game_id = game_id
         self.seed = seed
+        self.game_params = dict(game_params) if game_params else {}
         self._last_obs_vector = None
         self._last_action_mask = None
         self._rnd = random.Random(seed)
@@ -74,6 +76,11 @@ class PyTAG():
         agents = [get_agent(agent_id) for agent_id in agent_ids]
         self._playerID = agent_ids.index("python") # if multiple python agents this is the first one
         self._java_env = PyTAGEnv(gameType, None, jpype.java.util.ArrayList(agents), seed, True)
+
+        # Applied before the first reset: most parameters are only read while the
+        # board is being built, so setting them afterwards would have no effect.
+        for name, value in self.game_params.items():
+            self._java_env.setGameParameter(name, int(value))
 
         # Construct action/observation space
         self._java_env.reset()
@@ -144,6 +151,23 @@ class PyTAG():
 
     def has_won(self, player_id=0):
         return int(str(self._java_env.getPlayerResults()[player_id]) == "WIN_GAME")
+
+    def saboteur_team_reward(self, player_id=None):
+        """Role-relative round reward for Saboteur (+1 team win, -1 loss, 0 if unresolved)."""
+        if player_id is None:
+            player_id = self._playerID
+        return float(self._java_env.getSaboteurTeamReward(int(player_id)))
+
+    def saboteur_miners_won(self):
+        return bool(self._java_env.getSaboteurMinersWon())
+
+    def saboteur_round_resolved(self):
+        return bool(self._java_env.getSaboteurRoundResolved())
+
+    def saboteur_is_saboteur(self, player_id=None):
+        if player_id is None:
+            player_id = self._playerID
+        return bool(self._java_env.getSaboteurIsSaboteur(int(player_id)))
 
     def terminal_reward(self, player_id=0):
         # gets terminal reward - recommended to check if game is terminal as an unfinished game return the same value as a tie

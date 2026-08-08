@@ -42,3 +42,9 @@ gym.envs.register(
      entry_point='pytag.gym_wrapper.envs:TagSingleplayerGym',
      kwargs={"game_id": "LoveLetter", "agent_ids": ["python", "random"]}
 )
+
+gym.envs.register(
+     id='TAG/Saboteur-v0',
+     entry_point='pytag.gym_wrapper.envs:make_saboteur_env',
+     kwargs={"game_id": "Saboteur", "agent_ids": ["python", "random", "random"]}
+)

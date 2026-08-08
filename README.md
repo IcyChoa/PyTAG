@@ -50,6 +50,7 @@ The following games are currently supported (as registered Gymnasium environment
 | SushiGo | `TAG/SushiGo-v0` | JSON | 2–5 |
 | SushiGo (multi-agent) | `TAG/SushiGo-MA-v0` | JSON | 2 |
 | PowerGrid | `TAG/PowerGrid-v0` | vector | 3–6 |
+| Saboteur | `TAG/Saboteur-v0` | vector | 3–10 |
 
 ## Getting started
 

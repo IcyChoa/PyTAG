@@ -3,15 +3,19 @@ import gymnasium as gym
 import random
 
 from pytag import PyTAG, MultiAgentPyTAG, SelfPlayPyTAG
+from pytag.utils.wrappers import SaboteurTeamRewardWrapper
 from typing import Dict, List
 
 class TagSingleplayerGym(gym.Env):
-    def __init__(self, game_id: str, agent_ids: List[str], seed: int=0, obs_type:str="vector"):
+    def __init__(self, game_id: str, agent_ids: List[str], seed: int=0, obs_type:str="vector",
+                 game_params: Dict[str, int]=None):
         super().__init__()
         self._obs_type = obs_type
+        self.game_id = game_id
         
         # initialise a single player pytag environment
-        self._env = PyTAG(agent_ids=agent_ids, game_id=game_id, seed=seed, obs_type=obs_type)
+        self._env = PyTAG(agent_ids=agent_ids, game_id=game_id, seed=seed, obs_type=obs_type,
+                          game_params=game_params)
         assert agent_ids.count("python") == 1, "Only one python agent is allowed - look at TAGMultiplayerGym for multiplayer support"
         self._playerID = agent_ids.index("python")
 
@@ -45,6 +49,16 @@ class TagSingleplayerGym(gym.Env):
     
     def is_valid_action(self, action: int) -> bool:
         return self._env.is_valid_action(action)
+
+
+def make_saboteur_env(game_id: str = "Saboteur", agent_ids: List[str] | None = None, seed: int = 0,
+                      obs_type: str = "vector", game_params: Dict[str, int] | None = None):
+    """Single-player Saboteur with one-round team ±1 rewards."""
+    if agent_ids is None:
+        agent_ids = ["python", "random", "random"]
+    env = TagSingleplayerGym(game_id=game_id, agent_ids=agent_ids, seed=seed, obs_type=obs_type,
+                             game_params=game_params)
+    return SaboteurTeamRewardWrapper(env)
 
 class TAGSelfPlayGYm(gym.Env):
     def __init__(self, game_id: str, n_players:int =2, seed: int = 0, obs_type: str = "vector"):

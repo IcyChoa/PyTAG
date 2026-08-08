@@ -141,6 +141,58 @@ class RecordEpisodeStatistics(VectorWrapper):
             self.episode_start_times[dones] = time.perf_counter()
         return observations, rewards, terminations, truncations, infos
 
+
+class SaboteurTeamRewardWrapper(gym.Wrapper):
+    """Replace nugget-ranking terminal reward with one-round Miner/Saboteur team ±1."""
+
+    def reset(self, **kwargs):
+        obs, info = self.env.reset(**kwargs)
+        info = self._augment_info(info, reward=0.0, done=False)
+        return obs, info
+
+    def step(self, action):
+        obs, _reward, terminated, truncated, info = self.env.step(action)
+        done = bool(terminated or truncated)
+        team_reward = 0.0
+        if done:
+            # Prefer Java team reward when available; fall back via unwrapped PyTAG
+            core = self._core_env()
+            team_reward = float(core.saboteur_team_reward())
+        info = self._augment_info(info, reward=team_reward, done=done)
+        return obs, team_reward, terminated, truncated, info
+
+    def sample_rnd_action(self):
+        return self.env.unwrapped.sample_rnd_action()
+
+    def is_valid_action(self, action: int) -> bool:
+        return self.env.unwrapped.is_valid_action(action)
+
+    def get_action_tree_shape(self):
+        return self.env.unwrapped.get_action_tree_shape()
+
+    def _core_env(self):
+        env = self.env
+        while hasattr(env, "env"):
+            env = env.env
+        # TagSingleplayerGym stores PyTAG as _env
+        if hasattr(env, "_env"):
+            return env._env
+        return env
+
+    def _augment_info(self, info, reward: float, done: bool):
+        info = dict(info) if info is not None else {}
+        core = self._core_env()
+        is_saboteur = bool(core.saboteur_is_saboteur())
+        miners_won = bool(core.saboteur_miners_won()) if done else False
+        info["role"] = "saboteur" if is_saboteur else "miner"
+        info["is_saboteur"] = is_saboteur
+        info["miners_won"] = miners_won
+        info["team_reward"] = reward
+        # has_won: +1 team win, -1 team loss, 0 otherwise (for existing loggers)
+        if done:
+            info["has_won"] = int(reward)
+        return info
+
 # Adapted wrapper for the self-play case
 class RecordSelfPlayEpStats(VectorWrapper):
     """Track cumulative rewards, lengths, and wins for the learning player in self-play."""
