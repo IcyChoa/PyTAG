@@ -16,7 +16,7 @@ class TagSingleplayerGym(gym.Env):
         # initialise a single player pytag environment
         self._env = PyTAG(agent_ids=agent_ids, game_id=game_id, seed=seed, obs_type=obs_type,
                           game_params=game_params)
-        assert agent_ids.count("python") == 1, "Only one python agent is allowed - look at TAGMultiplayerGym for multiplayer support"
+        assert agent_ids.count("python") >= 1, "Need at least one python agent"
         self._playerID = agent_ids.index("python")
 
         # Construct action/observation space - note this requires resetting the environment

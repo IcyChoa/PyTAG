@@ -143,22 +143,44 @@ class RecordEpisodeStatistics(VectorWrapper):
 
 
 class SaboteurTeamRewardWrapper(gym.Wrapper):
-    """Replace nugget-ranking terminal reward with one-round Miner/Saboteur team ±1."""
+    """Replace nugget-ranking terminal reward with one-round Miner/Saboteur team ±1.
+
+    When every seat is a Python agent, each ``step`` is one seat's action and the
+    next observation belongs to whoever moves next. Info then includes ``player_id``
+    (next to act), ``actor_id`` (who just acted), and on terminal steps
+    ``team_rewards`` / ``is_saboteur_all`` for every seat so the trainer can credit
+    all three trajectories.
+    """
 
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
-        info = self._augment_info(info, reward=0.0, done=False)
+        core = self._core_env()
+        player_id = int(core.getPlayerID())
+        info = self._augment_info(
+            info,
+            reward=0.0,
+            done=False,
+            actor_id=player_id,
+            player_id=player_id,
+        )
         return obs, info
 
     def step(self, action):
+        core = self._core_env()
+        actor_id = int(core.getPlayerID())
         obs, _reward, terminated, truncated, info = self.env.step(action)
         done = bool(terminated or truncated)
         team_reward = 0.0
         if done:
-            # Prefer Java team reward when available; fall back via unwrapped PyTAG
-            core = self._core_env()
-            team_reward = float(core.saboteur_team_reward())
-        info = self._augment_info(info, reward=team_reward, done=done)
+            team_reward = float(core.saboteur_team_reward(actor_id))
+        player_id = int(core.getPlayerID())
+        info = self._augment_info(
+            info,
+            reward=team_reward,
+            done=done,
+            actor_id=actor_id,
+            player_id=player_id,
+        )
         return obs, team_reward, terminated, truncated, info
 
     def sample_rnd_action(self):
@@ -179,16 +201,31 @@ class SaboteurTeamRewardWrapper(gym.Wrapper):
             return env._env
         return env
 
-    def _augment_info(self, info, reward: float, done: bool):
+    def _augment_info(self, info, reward: float, done: bool, actor_id: int, player_id: int):
         info = dict(info) if info is not None else {}
         core = self._core_env()
-        is_saboteur = bool(core.saboteur_is_saboteur())
+        n_players = len(core.agent_ids)
+        is_saboteur_all = np.array(
+            [bool(core.saboteur_is_saboteur(p)) for p in range(n_players)],
+            dtype=bool,
+        )
+        if done:
+            team_rewards = np.array(
+                [float(core.saboteur_team_reward(p)) for p in range(n_players)],
+                dtype=np.float32,
+            )
+        else:
+            team_rewards = np.zeros(n_players, dtype=np.float32)
+        is_saboteur = bool(is_saboteur_all[player_id]) if not done else bool(is_saboteur_all[actor_id])
         miners_won = bool(core.saboteur_miners_won()) if done else False
+        info["player_id"] = int(player_id)
+        info["actor_id"] = int(actor_id)
         info["role"] = "saboteur" if is_saboteur else "miner"
         info["is_saboteur"] = is_saboteur
+        info["is_saboteur_all"] = is_saboteur_all
+        info["team_rewards"] = team_rewards
         info["miners_won"] = miners_won
         info["team_reward"] = reward
-        # has_won: +1 team win, -1 team loss, 0 otherwise (for existing loggers)
         if done:
             info["has_won"] = int(reward)
         return info
