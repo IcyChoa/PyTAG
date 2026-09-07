@@ -90,6 +90,7 @@ class PyTAG():
 
         obs_size = int(self._java_env.getObservationSpace())
         self.observation_space = obs_size # (obs_size,)
+        # Dummy unless a caller asks Java for getTreeShape(); action IDs are DFS leaf indices.
         self._action_tree_shape = 1
 
     def get_action_tree_shape(self):
