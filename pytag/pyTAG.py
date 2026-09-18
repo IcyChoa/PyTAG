@@ -162,6 +162,21 @@ class PyTAG():
     def saboteur_miners_won(self):
         return bool(self._java_env.getSaboteurMinersWon())
 
+    def saboteur_goals(self):
+        """True goal cards as [{x, y, is_gold, revealed}, ...] from the live Java state."""
+        raw = [int(v) for v in self._java_env.getSaboteurGoals()]
+        goals = []
+        for i in range(0, len(raw), 4):
+            goals.append(
+                {
+                    "x": raw[i],
+                    "y": raw[i + 1],
+                    "is_gold": bool(raw[i + 2]),
+                    "revealed": bool(raw[i + 3]),
+                }
+            )
+        return goals
+
     def saboteur_round_resolved(self):
         return bool(self._java_env.getSaboteurRoundResolved())
 

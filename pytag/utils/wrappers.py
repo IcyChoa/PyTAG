@@ -226,6 +226,7 @@ class SaboteurTeamRewardWrapper(gym.Wrapper):
         info["team_rewards"] = team_rewards
         info["miners_won"] = miners_won
         info["team_reward"] = reward
+        info["goals"] = core.saboteur_goals()
         if done:
             info["has_won"] = int(reward)
         return info
