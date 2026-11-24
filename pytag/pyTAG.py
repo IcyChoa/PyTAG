@@ -96,8 +96,12 @@ class PyTAG():
     def get_action_tree_shape(self):
         return self._action_tree_shape
 
-    def reset(self):
-        self._java_env.reset()
+    def reset(self, game_seed: int | None = None):
+        # game_seed deals a fixed game; without it the Java side picks the next seed in its chain.
+        if game_seed is None:
+            self._java_env.reset()
+        else:
+            self._java_env.resetWithSeed(int(game_seed))
         self._update_data()
 
         return self._last_obs_vector, {"action_tree": self._action_tree_shape, "action_mask": self._last_action_mask,
@@ -137,6 +141,10 @@ class PyTAG():
 
     def getVectorObs(self):
         return self._java_env.getFeatures()
+
+    def saboteur_obs_for(self, player_id: int):
+        obs = self._java_env.getObservationVectorFor(int(player_id))
+        return np.array(obs, dtype=np.float32)
 
     def getJSONObs(self):
         return self._java_env.getObservationJson()

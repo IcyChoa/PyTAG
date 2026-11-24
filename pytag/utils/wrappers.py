@@ -192,6 +192,10 @@ class SaboteurTeamRewardWrapper(gym.Wrapper):
     def get_action_tree_shape(self):
         return self.env.unwrapped.get_action_tree_shape()
 
+    def saboteur_obs_for(self, player_id: int):
+        """Fog-of-war vector for ``player_id``, without changing the acting seat's observation."""
+        return self._core_env().saboteur_obs_for(int(player_id))
+
     def _core_env(self):
         env = self.env
         while hasattr(env, "env"):

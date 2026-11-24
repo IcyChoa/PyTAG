@@ -34,9 +34,12 @@ class TagSingleplayerGym(gym.Env):
         return self._env.sample_rnd_action()
     
     def reset(self, *, seed: int | None = None, options: dict | None = None):
+        # ``seed`` only reseeds the Python-side RNG; the deal comes from the Java seed
+        # chain. Pass options={"game_seed": s} to deal a fixed game.
         if seed is not None:
             self._env._rnd = random.Random(seed)
-        obs, info = self._env.reset()
+        game_seed = (options or {}).get("game_seed")
+        obs, info = self._env.reset(game_seed=game_seed)
         return obs, info
 
     def step(self, action):
